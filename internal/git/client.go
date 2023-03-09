@@ -48,7 +48,10 @@ func (client *AzureDevopsClient) GetCommits(ctx context.Context, author string) 
 				log.WithError(err).Warnln("can't download changes")
 				continue
 			}
-			changes.Changes
+			for _ = range *changes.Changes {
+				return nil
+			}
 		}
 	}
+	return nil
 }
