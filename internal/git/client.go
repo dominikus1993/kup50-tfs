@@ -31,7 +31,7 @@ func (client *AzureDevopsClient) GetCommits(ctx context.Context, author string) 
 	}
 	for _, repo := range *repositories {
 		repoId := repo.Id.String()
-		commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: author}})
+		commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: &author, FromDate: }})
 		if err != nil {
 			err = errors.Join(err, commitErr)
 			continue
