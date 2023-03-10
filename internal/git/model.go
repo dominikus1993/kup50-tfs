@@ -84,9 +84,9 @@ func parseJson(json interface{}) (*gitChange, error) {
 }
 
 type RepositoryChanges struct {
-	changes []*gitChange
-	repo    *git.GitRepository
-	repoId  *string
+	changes  []*gitChange
+	repoId   string
+	repoName string
 }
 
 func (repo *RepositoryChanges) AddChanges(changes []*gitChange) {
@@ -99,5 +99,5 @@ func (repo *RepositoryChanges) HasChanges() bool {
 
 func NewRepositoryChanges(repo *git.GitRepository) *RepositoryChanges {
 	repoId := repo.Id.String()
-	return &RepositoryChanges{repo: repo, repoId: &repoId, changes: make([]*gitChange, 0)}
+	return &RepositoryChanges{repoName: *repo.Name, repoId: repoId, changes: make([]*gitChange, 0)}
 }

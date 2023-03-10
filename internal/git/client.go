@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/dominikus1993/kup50-tfs/internal/datetime"
@@ -51,6 +52,7 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 			}
 			repository := NewRepositoryChanges(&repo)
 			for _, commit := range *commits {
+
 				changes, err := client.gitClient.GetChanges(ctx, git.GetChangesArgs{CommitId: commit.CommitId, Project: &client.project, RepositoryId: &repoId})
 				if err != nil {
 					err = errors.Join(err, commitErr)
@@ -71,8 +73,7 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 			if repository.HasChanges() {
 				log.WithField("repo", *repo.Name).Infoln("not empty")
 				result <- repository
-			} else {
-				log.WithField("repo", *repo.Name).Warnln("empty")
+				continue
 			}
 		}
 		close(result)
@@ -83,15 +84,15 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stream <-chan *RepositoryChanges) {
 	for repo := range stream {
 		for _, change := range repo.changes {
-			dir := createDir(*repo.repo.Name)
-			filename := filepath.Join(dir, filepath.Base(fmt.Sprintf("changes_%s.html", change.Item.ObjectId)))
-			log.WithField("dir", dir).WithField("repo", *repo.repo.Name).Infoln("Start save")
+			dir := createDir(repo.repoName)
+			filename := filepath.Join(dir, filepath.Base(fmt.Sprintf("changes_%s.html", strings.ReplaceAll(change.Item.Path, "/", "_"))))
+			log.WithField("dir", dir).WithField("repo", repo.repoName).Infoln("Start save")
 			switch change.ChangeType {
 			case "add":
-				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
+				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
 
 				if err != nil {
-					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
+					log.WithField("repoName", repo.repoName).WithError(err).Error("can't dowload commit changes blob")
 				}
 
 				outFile, _ := os.Create(filename)
@@ -99,21 +100,21 @@ func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stre
 				_, err = io.Copy(outFile, changes)
 				// handle err
 				if err != nil {
-					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't save commit changes blob")
+					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
 				}
 				outFile.Close()
 			case "edit":
-				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
+				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
 
 				if err != nil {
-					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't save commit changes blob")
+					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
 				}
 				outFile, _ := os.Create(filename)
 				// handle err
 				_, err = io.Copy(outFile, changes)
 				// handle err
 				if err != nil {
-					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't save commit changes blob")
+					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
 				}
 				outFile.Close()
 			}
@@ -123,8 +124,9 @@ func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stre
 }
 
 func createDir(dir string) string {
-	if err := os.MkdirAll(filepath.Join("kup", dir), os.ModePerm); err != nil {
+	result := filepath.Join("kup", dir)
+	if err := os.MkdirAll(result, os.ModePerm); err != nil {
 		log.Errorln(err)
 	}
-	return dir
+	return result
 }
