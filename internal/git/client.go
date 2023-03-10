@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	htmldiff "github.com/dominikus1993/html-diff"
 	"github.com/dominikus1993/kup50-tfs/internal/datetime"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
@@ -23,6 +25,7 @@ type AzureDevopsClient struct {
 	token           string
 	project         string
 	gitClient       git.Client
+	cfg             *htmldiff.Config
 }
 
 func NewAzureDevopsClient(ctx context.Context, organizationUrl, token, project string) (*AzureDevopsClient, error) {
@@ -31,7 +34,14 @@ func NewAzureDevopsClient(ctx context.Context, organizationUrl, token, project s
 	if err != nil {
 		return nil, err
 	}
-	return &AzureDevopsClient{organizationUrl: organizationUrl, token: token, gitClient: gitClient}, nil
+	cfg := &htmldiff.Config{
+		Granularity:  6,
+		InsertedSpan: []htmldiff.Attribute{{Key: "style", Val: "background-color: palegreen; text-decoration: underline;"}},
+		DeletedSpan:  []htmldiff.Attribute{{Key: "style", Val: "background-color: lightpink; text-decoration: line-through;"}},
+		ReplacedSpan: []htmldiff.Attribute{{Key: "style", Val: "background-color: lightskyblue; text-decoration: overline;"}},
+		CleanTags:    []string{"documize"},
+	}
+	return &AzureDevopsClient{organizationUrl: organizationUrl, token: token, gitClient: gitClient, cfg: cfg}, nil
 }
 
 func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) <-chan *RepositoryChanges {
@@ -85,7 +95,7 @@ func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stre
 	for repo := range stream {
 		for _, change := range repo.changes {
 			dir := createDir(repo.repoName)
-			filename := filepath.Join(dir, filepath.Base(fmt.Sprintf("changes_%s.html", strings.ReplaceAll(change.Item.Path, "/", "_"))))
+			filename := createFilename(dir, change.Item.Path, change.ChangeType)
 			log.WithField("dir", dir).WithField("repo", repo.repoName).Infoln("Start save")
 			switch change.ChangeType {
 			case "add":
@@ -104,23 +114,38 @@ func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stre
 				}
 				outFile.Close()
 			case "edit":
-				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
+				newchanges, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
 
 				if err != nil {
-					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
+					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't downloadnew commit changes blob")
 				}
+				oldchanges, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.OriginalObjectId})
+
+				if err != nil {
+					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't download old commit changes blob")
+				}
+				oldHtml := toString(oldchanges)
+				newHtml := toString(newchanges)
 				outFile, _ := os.Create(filename)
+				res, err := client.cfg.HTMLdiff([]string{oldHtml, newHtml})
 				// handle err
-				_, err = io.Copy(outFile, changes)
+				outFile.WriteString(res[0])
 				// handle err
 				if err != nil {
 					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
 				}
+
+				newchanges.Close()
+				oldchanges.Close()
 				outFile.Close()
 			}
 
 		}
 	}
+}
+
+func createFilename(dir, path, operation string) string {
+	return filepath.Join(dir, filepath.Base(fmt.Sprintf("changes_%s_%s.html", strings.ReplaceAll(path, "/", "_"), operation)))
 }
 
 func createDir(dir string) string {
@@ -129,4 +154,10 @@ func createDir(dir string) string {
 		log.Errorln(err)
 	}
 	return result
+}
+
+func toString(ioClose io.ReadCloser) string {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(ioClose)
+	return buf.String() // Does a complete copy of the bytes in the buffer.
 }
