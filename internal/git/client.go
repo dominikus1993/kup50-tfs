@@ -29,39 +29,44 @@ func NewAzureDevopsClient(ctx context.Context, organizationUrl, token, project s
 	return &AzureDevopsClient{organizationUrl: organizationUrl, token: token, gitClient: gitClient}, nil
 }
 
-func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) ([]*gitChange, error) {
-	result := make([]*gitChange, 0)
+func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) <-chan *gitChange {
+	result := make(chan *gitChange)
 	firstDay, lastDay := datetime.FirstAndLastDayOfTheMonth(time.Now())
 	repositories, err := client.gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{Project: &client.project})
 	if err != nil {
-		return result, err
+		panic(err)
 	}
-
-	for _, repo := range *repositories {
-		repoId := repo.Id.String()
-		commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: &author, FromDate: &firstDay, ToDate: &lastDay}})
-		if err != nil {
-			err = errors.Join(err, commitErr)
-			log.WithError(err).Warnln("can't download commits")
-			continue
-		}
-		for _, commit := range *commits {
-			changes, err := client.gitClient.GetChanges(ctx, git.GetChangesArgs{CommitId: commit.CommitId, RepositoryId: &repoId})
+	go func() {
+		for _, repo := range *repositories {
+			repoId := repo.Id.String()
+			commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: &author, FromDate: &firstDay, ToDate: &lastDay}})
 			if err != nil {
 				err = errors.Join(err, commitErr)
-				log.WithError(err).Warnln("can't download changes")
+				log.WithError(err).Warnln("can't download commits")
 				continue
 			}
-			gitchanges, err := FromJson(changes)
-			if err != nil {
-				err = errors.Join(err, commitErr)
-				log.WithError(err).Warnln("can't parse changes")
-				continue
-			}
+			for _, commit := range *commits {
+				changes, err := client.gitClient.GetChanges(ctx, git.GetChangesArgs{CommitId: commit.CommitId, RepositoryId: &repoId})
+				if err != nil {
+					err = errors.Join(err, commitErr)
+					log.WithError(err).Warnln("can't download changes")
+					continue
+				}
+				gitchanges, err := FromJson(changes)
+				if err != nil {
+					err = errors.Join(err, commitErr)
+					log.WithError(err).Warnln("can't parse changes")
+					continue
+				}
 
-			filteredChanges := FilterChangeType(FilterBlob(gitchanges), "add", "edit")
-			result = append(result, filteredChanges...)
+				filteredChanges := FilterChangeType(FilterBlob(gitchanges), "add", "edit")
+
+				for _, ch := range filteredChanges {
+					result <- ch
+				}
+			}
 		}
-	}
-	return result, nil
+		close(result)
+	}()
+	return result
 }

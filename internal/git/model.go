@@ -67,3 +67,8 @@ func parseJson(json interface{}) (*gitChange, error) {
 	result.Item.URL = item["url"].(string)
 	return &result, nil
 }
+
+type RepositoryChanges struct {
+	changes []*gitChange
+	repo    *git.GitRepository
+}
