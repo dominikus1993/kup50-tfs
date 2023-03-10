@@ -45,9 +45,7 @@ func main() {
 			}
 
 			changes := client.GetChanges(c.Context, author)
-			for v := range changes {
-				fmt.Println("dupa", v.Item.URL)
-			}
+			client.DowloadAndSaveChanges(c.Context, changes)
 			return nil
 		},
 	}

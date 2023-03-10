@@ -3,6 +3,9 @@ package git
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"os"
 	"time"
 
 	"github.com/dominikus1993/kup50-tfs/internal/datetime"
@@ -29,8 +32,8 @@ func NewAzureDevopsClient(ctx context.Context, organizationUrl, token, project s
 	return &AzureDevopsClient{organizationUrl: organizationUrl, token: token, gitClient: gitClient}, nil
 }
 
-func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) <-chan *gitChange {
-	result := make(chan *gitChange)
+func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) <-chan *RepositoryChanges {
+	result := make(chan *RepositoryChanges)
 	firstDay, lastDay := datetime.FirstAndLastDayOfTheMonth(time.Now())
 	repositories, err := client.gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{Project: &client.project})
 	if err != nil {
@@ -40,11 +43,12 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 		for _, repo := range *repositories {
 			repoId := repo.Id.String()
 			commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: &author, FromDate: &firstDay, ToDate: &lastDay}})
-			if err != nil {
+			if commitErr != nil {
 				err = errors.Join(err, commitErr)
-				log.WithError(err).Warnln("can't download commits")
+				log.WithField("repoName", *repo.Name).WithError(err).Warnln("can't download commits")
 				continue
 			}
+			repository := NewRepositoryChanges(&repo)
 			for _, commit := range *commits {
 				changes, err := client.gitClient.GetChanges(ctx, git.GetChangesArgs{CommitId: commit.CommitId, RepositoryId: &repoId})
 				if err != nil {
@@ -61,12 +65,50 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 
 				filteredChanges := FilterChangeType(FilterBlob(gitchanges), "add", "edit")
 
-				for _, ch := range filteredChanges {
-					result <- ch
-				}
+				repository.AddChanges(filteredChanges)
+			}
+			if repository.HasChanges() {
+				result <- repository
 			}
 		}
 		close(result)
 	}()
 	return result
+}
+
+func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stream <-chan *RepositoryChanges) {
+	for repo := range stream {
+		for _, change := range repo.changes {
+			switch change.ChangeType {
+			case "add":
+				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
+
+				if err != nil {
+					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
+				}
+				outFile, _ := os.Create(fmt.Sprintf("changes_%s_%s.html", *repo.repoId, change.Item.ObjectId))
+				// handle err
+				_, err = io.Copy(outFile, changes)
+				// handle err
+				if err != nil {
+					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
+				}
+				outFile.Close()
+			case "edit":
+				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
+
+				if err != nil {
+					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
+				}
+				outFile, _ := os.Create(fmt.Sprintf("jp2137_%s_%s.html", *repo.repoId, change.Item.ObjectId))
+				// handle err
+				_, err = io.Copy(outFile, changes)
+				// handle err
+				if err != nil {
+					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
+				}
+				outFile.Close()
+			}
+		}
+	}
 }

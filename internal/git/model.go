@@ -12,9 +12,11 @@ var errCantItemParse = errors.New("cant parse item for gitChange from json")
 
 type gitChange struct {
 	Item struct {
-		GitObjectType string `json:"gitObjectType"`
-		Path          string `json:"path"`
-		URL           string `json:"url"`
+		GitObjectType    string `json:"gitObjectType"`
+		OriginalObjectId string `json:"originalObjectId"`
+		ObjectId         string `json:"objectId"`
+		Path             string `json:"path"`
+		URL              string `json:"url"`
 	} `json:"item"`
 	ChangeType string `json:"changeType"`
 }
@@ -65,10 +67,37 @@ func parseJson(json interface{}) (*gitChange, error) {
 	result.Item.GitObjectType = item["gitObjectType"].(string)
 	result.Item.Path = item["path"].(string)
 	result.Item.URL = item["url"].(string)
+	if result.ChangeType == "add" {
+		if objectId, ok := item["objectId"].(string); ok {
+			result.Item.ObjectId = objectId
+		}
+	}
+	if result.ChangeType == "edit" {
+		if objectId, ok := item["objectId"].(string); ok {
+			result.Item.ObjectId = objectId
+		}
+		if objectId, ok := item["originalObjectId"].(string); ok {
+			result.Item.OriginalObjectId = objectId
+		}
+	}
 	return &result, nil
 }
 
 type RepositoryChanges struct {
 	changes []*gitChange
 	repo    *git.GitRepository
+	repoId  *string
+}
+
+func (repo *RepositoryChanges) AddChanges(changes []*gitChange) {
+	repo.changes = append(repo.changes, changes...)
+}
+
+func (repo *RepositoryChanges) HasChanges() bool {
+	return len(repo.changes) > 0
+}
+
+func NewRepositoryChanges(repo *git.GitRepository) *RepositoryChanges {
+	repoId := repo.Id.String()
+	return &RepositoryChanges{repo: repo, repoId: &repoId, changes: make([]*gitChange, 0)}
 }
