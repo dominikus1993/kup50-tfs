@@ -11,6 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var download = true
+
 type AzureDevopsClient struct {
 	organizationUrl string
 	token           string
@@ -27,12 +29,14 @@ func NewAzureDevopsClient(ctx context.Context, organizationUrl, token, project s
 	return &AzureDevopsClient{organizationUrl: organizationUrl, token: token, gitClient: gitClient}, nil
 }
 
-func (client *AzureDevopsClient) GetCommits(ctx context.Context, author string) error {
+func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) ([]*gitChange, error) {
+	result := make([]*gitChange, 0)
 	firstDay, lastDay := datetime.FirstAndLastDayOfTheMonth(time.Now())
 	repositories, err := client.gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{Project: &client.project})
 	if err != nil {
-		return err
+		return result, err
 	}
+
 	for _, repo := range *repositories {
 		repoId := repo.Id.String()
 		commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: &author, FromDate: &firstDay, ToDate: &lastDay}})
@@ -48,10 +52,16 @@ func (client *AzureDevopsClient) GetCommits(ctx context.Context, author string) 
 				log.WithError(err).Warnln("can't download changes")
 				continue
 			}
-			for _ = range *changes.Changes {
-				return nil
+			gitchanges, err := FromJson(changes)
+			if err != nil {
+				err = errors.Join(err, commitErr)
+				log.WithError(err).Warnln("can't parse changes")
+				continue
 			}
+
+			filteredChanges := FilterChangeType(FilterBlob(gitchanges), "add", "edit")
+			result = append(result, filteredChanges...)
 		}
 	}
-	return nil
+	return result, nil
 }

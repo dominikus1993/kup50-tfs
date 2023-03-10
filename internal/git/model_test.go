@@ -29,7 +29,7 @@ var jsonS string = `
 		  "isFolder": true,
 		  "url": "https://dev.azure.com/fabrikam/_apis/git/repositories/278d5cd2-584d-4b63-824a-2ba458937249/items/MyWebSite/MyWebSite/fonts?versionType=Commit"
 		},
-		"changeType": "add"
+		"changeType": "edit"
 	  }
 	]
   }
@@ -44,10 +44,48 @@ func TestJsonParsing(t *testing.T) {
 	assert.NotNil(t, resp.Changes)
 	changes := *resp.Changes
 	for _, change := range changes {
-		a, ok := change.(map[string]interface{})
-		assert.True(t, ok)
-		assert.NotNil(t, a["changeType"])
-		assert.NotNil(t, a["item"])
+		subject, err := parseJson(change)
+		assert.NoError(t, err)
+		assert.NotNil(t, subject)
 	}
+}
 
+func TestFromJson(t *testing.T) {
+	var resp git.GitCommitChanges
+	if err := json.Unmarshal([]byte(jsonS), &resp); err != nil {
+		panic(err)
+	}
+	assert.NotNil(t, resp)
+	subject, err := FromJson(&resp)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, subject)
+	assert.Len(t, subject, 2)
+}
+
+func TestFilterBlob(t *testing.T) {
+	var resp git.GitCommitChanges
+	if err := json.Unmarshal([]byte(jsonS), &resp); err != nil {
+		panic(err)
+	}
+	assert.NotNil(t, resp)
+	changes, err := FromJson(&resp)
+
+	subject := FilterBlob(changes)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, subject)
+	assert.Len(t, subject, 1)
+}
+
+func TestFilterChangeType(t *testing.T) {
+	var resp git.GitCommitChanges
+	if err := json.Unmarshal([]byte(jsonS), &resp); err != nil {
+		panic(err)
+	}
+	assert.NotNil(t, resp)
+	changes, err := FromJson(&resp)
+
+	subject := FilterChangeType(changes, "add")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, subject)
+	assert.Len(t, subject, 1)
 }
