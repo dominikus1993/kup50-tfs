@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/dominikus1993/kup50-tfs/internal/git"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
@@ -43,7 +43,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-
+			log.WithField("author", author).WithField("project", project).Infoln("Start parsing")
 			changes := client.GetChanges(c.Context, author)
 			client.DowloadAndSaveChanges(c.Context, changes)
 			return nil

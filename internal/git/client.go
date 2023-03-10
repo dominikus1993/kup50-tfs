@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/dominikus1993/kup50-tfs/internal/datetime"
@@ -50,7 +51,7 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 			}
 			repository := NewRepositoryChanges(&repo)
 			for _, commit := range *commits {
-				changes, err := client.gitClient.GetChanges(ctx, git.GetChangesArgs{CommitId: commit.CommitId, RepositoryId: &repoId})
+				changes, err := client.gitClient.GetChanges(ctx, git.GetChangesArgs{CommitId: commit.CommitId, Project: &client.project, RepositoryId: &repoId})
 				if err != nil {
 					err = errors.Join(err, commitErr)
 					log.WithError(err).Warnln("can't download changes")
@@ -68,7 +69,10 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 				repository.AddChanges(filteredChanges)
 			}
 			if repository.HasChanges() {
+				log.WithField("repo", *repo.Name).Infoln("not empty")
 				result <- repository
+			} else {
+				log.WithField("repo", *repo.Name).Warnln("empty")
 			}
 		}
 		close(result)
@@ -79,6 +83,9 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stream <-chan *RepositoryChanges) {
 	for repo := range stream {
 		for _, change := range repo.changes {
+			dir := createDir(*repo.repo.Name)
+			filename := filepath.Join(dir, filepath.Base(fmt.Sprintf("changes_%s.html", change.Item.ObjectId)))
+			log.WithField("dir", dir).WithField("repo", *repo.repo.Name).Infoln("Start save")
 			switch change.ChangeType {
 			case "add":
 				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
@@ -86,29 +93,38 @@ func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stre
 				if err != nil {
 					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
 				}
-				outFile, _ := os.Create(fmt.Sprintf("changes_%s_%s.html", *repo.repoId, change.Item.ObjectId))
+
+				outFile, _ := os.Create(filename)
 				// handle err
 				_, err = io.Copy(outFile, changes)
 				// handle err
 				if err != nil {
-					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
+					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't save commit changes blob")
 				}
 				outFile.Close()
 			case "edit":
 				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
 
 				if err != nil {
-					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
+					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't save commit changes blob")
 				}
-				outFile, _ := os.Create(fmt.Sprintf("jp2137_%s_%s.html", *repo.repoId, change.Item.ObjectId))
+				outFile, _ := os.Create(filename)
 				// handle err
 				_, err = io.Copy(outFile, changes)
 				// handle err
 				if err != nil {
-					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't dowload commit changes blob")
+					log.WithField("repoName", *repo.repo.Name).WithError(err).Error("can't save commit changes blob")
 				}
 				outFile.Close()
 			}
+
 		}
 	}
+}
+
+func createDir(dir string) string {
+	if err := os.MkdirAll(filepath.Join("kup", dir), os.ModePerm); err != nil {
+		log.Errorln(err)
+	}
+	return dir
 }
