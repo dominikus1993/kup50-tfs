@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/dominikus1993/kup50-tfs/internal/git"
+	"github.com/dominikus1993/kup50-tfs/internal/zip"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -43,9 +44,9 @@ func main() {
 			if err != nil {
 				return err
 			}
-			log.WithField("author", author).WithField("project", project).Infoln("Start parsing")
 			changes := client.GetChanges(c.Context, author)
 			client.DowloadAndSaveChanges(c.Context, changes)
+			zip.ZipWriter("kup", "kup.zip")
 			return nil
 		},
 	}

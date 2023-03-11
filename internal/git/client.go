@@ -45,13 +45,14 @@ func NewAzureDevopsClient(ctx context.Context, organizationUrl, token, project s
 }
 
 func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) <-chan *RepositoryChanges {
-	result := make(chan *RepositoryChanges)
+	result := make(chan *RepositoryChanges, 10)
 	firstDay, lastDay := datetime.FirstAndLastDayOfTheMonth(time.Now())
 	repositories, err := client.gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{Project: &client.project})
 	if err != nil {
 		panic(err)
 	}
 	go func() {
+		log.WithField("firstDay", firstDay).WithField("lastDay", lastDay).Infoln("Start processing")
 		for _, repo := range *repositories {
 			repoId := repo.Id.String()
 			commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: &author, FromDate: &firstDay, ToDate: &lastDay}})
