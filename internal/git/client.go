@@ -64,6 +64,10 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 			repository := NewRepositoryChanges(&repo)
 			for _, commit := range *commits {
 
+				var a = commit.Author.Date
+				var author = *commit.Author.Email
+				var repoName = *repo.Name
+				log.WithField("date", a).WithField("email", author).WithField("repo", repoName).Infoln("commit")
 				changes, err := client.gitClient.GetChanges(ctx, git.GetChangesArgs{CommitId: commit.CommitId, Project: &client.project, RepositoryId: &repoId})
 				if err != nil {
 					err = errors.Join(err, commitErr)
@@ -97,7 +101,6 @@ func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stre
 		for _, change := range repo.changes {
 			dir := createDir(repo.repoName)
 			filename := createFilename(dir, change.Item.Path, change.ChangeType)
-			log.WithField("dir", dir).WithField("repo", repo.repoName).Infoln("Start save")
 			switch change.ChangeType {
 			case "add":
 				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
