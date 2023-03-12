@@ -10,5 +10,5 @@ module Date =
         struct (first, last)
 
     let formatFirstAndLastMonthDay(struct (first: DateOnly, last: DateOnly)) =
-        let res = struct (first.ToString(), last.ToString())
+        let res = struct (first.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), last.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
         res
