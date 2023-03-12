@@ -60,6 +60,7 @@ module Git =
     let writeChanges (client: GitHttpClient) (repoChanges: taskSeq<TfsGitChange>) =
         taskSeq {
             for repoChange in repoChanges do
+                printfn "GetRepoBlobs %A" repoChange.RepoName
                 let dir = $"./kup/{repoChange.RepoName}"
                 do Files.createDir(dir)
                 for change in repoChange.Changes do
