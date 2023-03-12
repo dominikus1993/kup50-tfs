@@ -3,16 +3,23 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
+    <PackAsTool>true</PackAsTool>
+    <RootNamespace>RossmannToken</RootNamespace>
+    <ToolCommandName>rossmann-token</ToolCommandName>
+    <Version>1.0.0</Version>
+    <RollForward>Major</RollForward>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="Date.fs" />
+    <Compile Include="Files.fs" />
     <Compile Include="Git.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FSharp.Control.TaskSeq" Version="0.3.0" />
+    <PackageReference Include="htmldiff.net" Version="1.4.0" />
     <PackageReference Include="Microsoft.TeamFoundationServer.Client" Version="16.170.0" />
     <PackageReference Include="Microsoft.VisualStudio.Services.Client" Version="16.170.0" />
   </ItemGroup>
