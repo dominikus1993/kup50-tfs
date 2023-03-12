@@ -1,6 +1,14 @@
-import {getPersonalAccessTokenHandler, WebApi} from "azure-devops";
-import { getFirstAndLastDayInMonth } from "../datetime/index.ts";
+import {getPersonalAccessTokenHandler, WebApi} from "azure-devops-node-api";
+import {format} from "date-and-time";
 
+function getFirstAndLastDayInMonth(date: Date) : { firstDay: string, lastDay: string } {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    date
+    return { firstDay: format(firstDay, "MM/dd/yyyy"), lastDay: format(lastDay, "MM/dd/yyyy"),}
+}
 
 export function connect(token: string, orgUrl: string) : WebApi {
     const authHandler = getPersonalAccessTokenHandler(token); 
@@ -22,3 +30,4 @@ export async function getChanges(webApi: WebApi, {project, author}: {project: st
         }
     }
 }
+
