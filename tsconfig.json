@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+      "target": "ES2017",
+      "module": "ESNext",
+      "moduleResolution": "node",
+      "outDir": "bin",
+      "sourceMap": true,
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "experimentalDecorators": true,
+      "emitDecoratorMetadata": true
+    },
+    "ts-node": {
+      "files": true,
+      "transpileOnly": true
+    },
+    "include": ["**/*.ts", "declariations/**.d.ts"],
+    "exclude": ["node_modules", ".vscode"]
+  }

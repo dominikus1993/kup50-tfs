@@ -1,13 +1,14 @@
+#! /usr/bin/env node
 import {getPersonalAccessTokenHandler, WebApi} from "azure-devops-node-api";
-import {format} from "date-and-time";
+import date from "date-and-time";
 
-function getFirstAndLastDayInMonth(date: Date) : { firstDay: string, lastDay: string } {
-    const year = date.getFullYear()
-    const month = date.getMonth()
+function getFirstAndLastDayInMonth(now: Date) : { firstDay: string, lastDay: string } {
+    const year = now.getFullYear()
+    const month = now.getMonth()
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    date
-    return { firstDay: format(firstDay, "MM/dd/yyyy"), lastDay: format(lastDay, "MM/dd/yyyy"),}
+
+    return { firstDay: date.format(firstDay, "MM/DD/YYYY"), lastDay: date.format(lastDay, "MM/DD/YYYY"),}
 }
 
 export function connect(token: string, orgUrl: string) : WebApi {
@@ -19,6 +20,7 @@ export async function getChanges(webApi: WebApi, {project, author}: {project: st
     const git = await webApi.getGitApi()
     const repositories = await git.getRepositories(project)
     const { firstDay, lastDay } = getFirstAndLastDayInMonth(new Date())
+    console.log(firstDay, lastDay)
     for (const repository of repositories) {
         if (!repository.id) {
             continue
@@ -26,8 +28,14 @@ export async function getChanges(webApi: WebApi, {project, author}: {project: st
         const commits = await git.getCommits(repository.id, { author: author, fromDate: firstDay, toDate: lastDay })
 
         for (const commit of commits) {
-            console.log(`Commit: ${repository.name} ${commit.author?.email}, ${commit.author?.date}`)
+            const changes = await git.getChanges(commit.commitId, repository.id, project)
+            if (!changes?.changes) {
+                continue
+            }
+            for (const change of changes.changes) {
+                console.log(`Commit: ${repository.name} ${commit.author?.email}, ${commit.author?.date}, ${change.changeType}`)
+            }
+            
         }
     }
 }
-
