@@ -13,7 +13,6 @@ let project = System.Environment.GetEnvironmentVariable("PROJECT_NAME")
 let creds  = VssBasicCredential("", pat)
 let credentials = VssCredentials(creds)
 
-// Connect to Azure DevOps Services
 let connection = new VssConnection(Uri(uri), credentials)
 
 let struct (firstDay, lastDay) = Date.getFirstAndLastMonthDay(DateTime.Today) |> Date.formatFirstAndLastMonthDay
@@ -21,3 +20,6 @@ let struct (firstDay, lastDay) = Date.getFirstAndLastMonthDay(DateTime.Today) |>
 let gitClient = connection.GetClient<GitHttpClient>();
 let res = Git.getRepoChanges(gitClient) (project) ("Dominik Kotecki") (firstDay) (lastDay) |> Git.writeChanges(gitClient) |> TaskSeq.toList
 
+Files.writeDirToZip "kup" "kup.zip"
+
+Files.removeDir "kup"
