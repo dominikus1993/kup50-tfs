@@ -35,7 +35,7 @@ module Program =
         let creds  = VssBasicCredential("", pat)
         let credentials = VssCredentials(creds)
         let connection = new VssConnection(Uri(orgUrl), credentials)
-        let struct (firstDay, lastDay) = Date.getFirstAndLastMonthDay(DateTime.Today) |> Date.formatFirstAndLastMonthDay
+        let struct (firstDay, lastDay) = Date.getFirstAndLastMonthDay(DateTime.Today)
         // Get a GitHttpClient to talk to the Git endpoints
         let gitClient = connection.GetClient<GitHttpClient>();
         do Git.getRepoChanges(gitClient) (project) author (firstDay) (lastDay) |> Git.writeChanges(gitClient) |> TaskSeq.toList |> ignore
