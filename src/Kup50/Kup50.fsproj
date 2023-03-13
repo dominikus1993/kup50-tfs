@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Html.fs" />
     <Compile Include="Date.fs" />
     <Compile Include="Files.fs" />
     <Compile Include="Git.fs" />

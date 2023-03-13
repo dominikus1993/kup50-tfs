@@ -7,14 +7,6 @@ module Files =
     let createDir (dirName: string) =
         Directory.CreateDirectory(dirName)
 
-    let writeAll(fileName: string)(stream: Stream) =
-        task {
-            if stream.Length > 0L then
-                use fileStream = new FileStream(fileName, FileMode.Create ||| FileMode.Append)
-                stream.Seek(0, SeekOrigin.Begin) |> ignore;
-                do! stream.CopyToAsync(fileStream)
-        }
-
     let writeString(fileName: string)(stream: string) =
         File.WriteAllTextAsync(fileName, stream)
  

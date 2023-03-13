@@ -62,9 +62,9 @@ module Git =
                     yield { Changes = changes; RepoName = repo.Name; RepoId = repo.Id; Project = orgName }
         }
    
-    let getBlob (client: GitHttpClient) (project: string) (repoId: Guid) (objectId: string) =
+    let private getBlob (client: GitHttpClient) (project: string) (repoId: Guid) (objectId: string) =
         task {
-            return! client.GetBlobContentAsync(project=project, repositoryId=repoId, sha1 = objectId, download = Nullable(true), fileName = null, userState = null, cancellationToken = CancellationToken.None)
+            return! client.GetBlobZipAsync(project=project, repositoryId=repoId, sha1 = objectId, download = Nullable(true), fileName = null, userState = null, cancellationToken = CancellationToken.None)
         }
     
     let writeChanges (client: GitHttpClient) (repoChanges: taskSeq<TfsGitChange>) =
@@ -78,16 +78,15 @@ module Git =
                     printfn "Change %A %A %A" change.Item.Path repoChange.RepoName change.ChangeType
                     match change.ChangeType with
                     | VersionControlChangeType.Add ->
-                        printfn "TEst"
                         use! blob = getBlob (client) (repoChange.Project) (repoChange.RepoId) (change.Item.ObjectId)
-                        printfn "TEst 2 %A" change.Item.ObjectId
-                        do! Files.writeAll(file) (blob)
-                        printfn "TEst 3"
+                        do! blob |> Stream.toString |> Files.writeString(file)
                     | VersionControlChangeType.Edit ->
                         use! oldBlob = getBlob (client) (repoChange.Project) (repoChange.RepoId) (change.Item.OriginalObjectId)
                         use! newBlob = getBlob (client) (repoChange.Project) (repoChange.RepoId) (change.Item.ObjectId)
-                        let diffHelper = HtmlDiff(oldBlob |> Stream.toString, newBlob |> Stream.toString);
-                        do! Files.writeString(file)(diffHelper.Build())
+                        let newHtml = newBlob |> Stream.toString
+                        let oldHtml = oldBlob |> Stream.toString
+                        let diff = Html.diff (newHtml) (oldHtml)
+                        do! diff |> Files.writeString(file)
                     | _ ->
                         printfn "Nope"
                     
