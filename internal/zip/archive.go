@@ -2,67 +2,56 @@ package zip
 
 import (
 	"archive/zip"
-	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
 
-func ZipWriter(baseFolder, destFileName string) {
-
-	// Get a Buffer to Write To
-	outFile, err := os.Create(destFileName)
+func ZipDir(source, destination string) error {
+	destinationFile, err := os.Create(destination)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
-	defer outFile.Close()
+	defer destinationFile.Close()
 
-	// Create a new zip archive.
-	w := zip.NewWriter(outFile)
+	archive := zip.NewWriter(destinationFile)
+	defer archive.Close()
 
-	// Add some files to the archive.
-	addFiles(w, baseFolder, "")
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// Make sure to check the error on Close.
-	err = w.Close()
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func addFiles(w *zip.Writer, basePath, baseInZip string) {
-	// Open the Directory
-	files, err := os.ReadDir(basePath)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	for _, file := range files {
-		filePath := filepath.Join(basePath, file.Name())
-		if !file.IsDir() {
-			dat, err := os.ReadFile(filePath)
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			// Add some files to the archive.
-			f, err := w.Create(filepath.Join(baseInZip, file.Name()))
-			if err != nil {
-				fmt.Println(err)
-			}
-			_, err = f.Write(dat)
-			if err != nil {
-				fmt.Println(err)
-			}
-		} else if file.IsDir() {
-
-			fmt.Println("Recursing and Adding SubDir: " + file.Name())
-			fmt.Println("Recursing and Adding SubDir: " + filePath)
-
-			addFiles(w, filePath, filepath.Join(baseInZip, file.Name()))
+	filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
 		}
-	}
+
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+
+		header.Name, _ = filepath.Rel(source, path)
+
+		if info.IsDir() {
+			header.Name += "/"
+		} else {
+			header.Method = zip.Deflate
+		}
+
+		writer, err := archive.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(writer, file)
+		return err
+	})
+
+	return nil
 }

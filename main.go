@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/dominikus1993/kup50-tfs/internal/diff"
+	"github.com/dominikus1993/kup50-tfs/internal/dir"
 	"github.com/dominikus1993/kup50-tfs/internal/git"
 	"github.com/dominikus1993/kup50-tfs/internal/zip"
 	log "github.com/sirupsen/logrus"
@@ -48,8 +49,11 @@ func main() {
 			}
 			changes := client.GetChanges(c.Context, author)
 			client.DowloadAndSaveChanges(c.Context, changes)
-			zip.ZipWriter("kup", "kup.zip")
-
+			err = zip.ZipDir("kup", "kup.zip")
+			if err != nil {
+				return err
+			}
+			dir.Rm("kup")
 			return nil
 		},
 	}
