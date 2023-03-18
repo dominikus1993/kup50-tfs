@@ -45,17 +45,17 @@ func NewAzureDevopsClient(ctx context.Context, organizationUrl, token, project s
 }
 
 func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) <-chan *RepositoryChanges {
-	result := make(chan *RepositoryChanges, 10)
+	result := make(chan *RepositoryChanges, 200)
 	firstDay, lastDay := datetime.FirstAndLastDayOfTheMonth(time.Now())
 	repositories, err := client.gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{Project: &client.project})
 	if err != nil {
 		panic(err)
 	}
 	go func() {
-		log.WithField("firstDay", firstDay).WithField("lastDay", lastDay).Infoln("Start processing")
+		log.WithField("firstDay", firstDay).WithField("lastDay", lastDay).WithField("project", client.project).Infoln("Start processing")
 		for _, repo := range *repositories {
 			repoId := repo.Id.String()
-			commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: &author, FromDate: &firstDay, ToDate: &lastDay}})
+			commits, commitErr := client.gitClient.GetCommits(ctx, git.GetCommitsArgs{RepositoryId: &repoId, Project: &client.project, SearchCriteria: &git.GitQueryCommitsCriteria{Author: &author, FromDate: datetime.FormatToAzureDevopsTime(firstDay), ToDate: datetime.FormatToAzureDevopsTime(lastDay)}})
 			if commitErr != nil {
 				err = errors.Join(err, commitErr)
 				log.WithField("repoName", *repo.Name).WithError(err).Warnln("can't download commits")
@@ -63,11 +63,13 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 			}
 			repository := NewRepositoryChanges(&repo)
 			for _, commit := range *commits {
-
-				var a = commit.Author.Date
+				var authorDate = commit.Author.Date
+				if authorDate.Time.Before(firstDay) {
+					continue
+				}
 				var author = *commit.Author.Email
 				var repoName = *repo.Name
-				log.WithField("date", a).WithField("email", author).WithField("repo", repoName).Infoln("commit")
+				log.WithField("date", authorDate).WithField("email", author).WithField("repo", repoName).Infoln("commit")
 				changes, err := client.gitClient.GetChanges(ctx, git.GetChangesArgs{CommitId: commit.CommitId, Project: &client.project, RepositoryId: &repoId})
 				if err != nil {
 					err = errors.Join(err, commitErr)
@@ -98,6 +100,7 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 
 func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stream <-chan *RepositoryChanges) {
 	for repo := range stream {
+		log.WithField("repo", repo.repoName).Infoln("Start Saving")
 		for _, change := range repo.changes {
 			dir := createDir(repo.repoName)
 			filename := createFilename(dir, change.Item.Path, change.ChangeType)

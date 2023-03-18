@@ -10,7 +10,7 @@ import (
 func TestFormatToAzureDevopsTime(t *testing.T) {
 	day := time.Date(2022, 5, 1, 0, 0, 0, 0, time.Local)
 
-	subject := formatToAzureDevopsTime(day)
+	subject := *FormatToAzureDevopsTime(day)
 
 	assert.Equal(t, "05/01/2022", subject)
 }
@@ -20,6 +20,6 @@ func TestFirstAndLastDayOfTheMonth(t *testing.T) {
 
 	first, last := FirstAndLastDayOfTheMonth(day)
 
-	assert.Equal(t, "05/01/2022", first)
-	assert.Equal(t, "05/31/2022", last)
+	assert.Equal(t, "05/01/2022", *FormatToAzureDevopsTime(first))
+	assert.Equal(t, "05/31/2022", *FormatToAzureDevopsTime(last))
 }
