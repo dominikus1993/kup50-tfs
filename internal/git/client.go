@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dominikus1993/kup50-tfs/internal/datetime"
@@ -90,52 +91,59 @@ func (client *AzureDevopsClient) GetChanges(ctx context.Context, author string) 
 }
 
 func (client *AzureDevopsClient) DowloadAndSaveChanges(ctx context.Context, stream <-chan *RepositoryChanges) {
-	for repo := range stream {
-		log.WithField("repo", repo.repoName).Infoln("Start Saving")
-		for _, change := range repo.changes {
-			directory, err := dir.CreateDir(repo.repoName)
+	var wg sync.WaitGroup
+	for repository := range stream {
+		wg.Add(1)
+		client.DowloadAndSave(ctx, repository, &wg)
+	}
+	wg.Wait()
+}
+
+func (client *AzureDevopsClient) DowloadAndSave(ctx context.Context, repo *RepositoryChanges, wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.WithField("repo", repo.repoName).Infoln("Start Saving")
+	for _, change := range repo.changes {
+		directory, err := dir.CreateDir(repo.repoName)
+		if err != nil {
+			log.WithField("repoName", repo.repoName).WithError(err).Error("can't create directory")
+			continue
+		}
+		filename := createFilename(*directory, change.Item.Path, change.ChangeType)
+		switch change.ChangeType {
+		case "add":
+			changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
+
 			if err != nil {
-				log.WithField("repoName", repo.repoName).WithError(err).Error("can't create directory")
+				log.WithField("repoName", repo.repoName).WithError(err).Error("can't dowload commit changes blob")
+			}
+			err = dir.Save(filename, changes)
+			// handle err
+			if err != nil {
+				log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
+			}
+		case "edit":
+			newchanges, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
+
+			if err != nil {
+				log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't downloadnew commit changes blob")
+			}
+			oldchanges, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.OriginalObjectId})
+
+			if err != nil {
+				log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't download old commit changes blob")
+			}
+
+			res, err := client.cfg.DiffBlobs(oldchanges, newchanges)
+			if err != nil {
+				log.WithError(err).WithField("repoName", repo.repoName).Errorln("Can't diff html")
 				continue
 			}
-			filename := createFilename(*directory, change.Item.Path, change.ChangeType)
-			switch change.ChangeType {
-			case "add":
-				changes, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
-
-				if err != nil {
-					log.WithField("repoName", repo.repoName).WithError(err).Error("can't dowload commit changes blob")
-				}
-				err = dir.Save(filename, changes)
-				// handle err
-				if err != nil {
-					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
-				}
-			case "edit":
-				newchanges, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.ObjectId})
-
-				if err != nil {
-					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't downloadnew commit changes blob")
-				}
-				oldchanges, err := client.gitClient.GetBlobContent(ctx, git.GetBlobContentArgs{RepositoryId: &repo.repoId, Project: &client.project, Download: &download, Sha1: &change.Item.OriginalObjectId})
-
-				if err != nil {
-					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't download old commit changes blob")
-				}
-
-				res, err := client.cfg.DiffBlobs(oldchanges, newchanges)
-				if err != nil {
-					log.WithError(err).WithField("repoName", repo.repoName).Errorln("Can't diff html")
-					continue
-				}
-				// handle err
-				err = dir.SaveString(filename, res)
-				// handle err
-				if err != nil {
-					log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
-				}
+			// handle err
+			err = dir.SaveString(filename, res)
+			// handle err
+			if err != nil {
+				log.WithField("repoName", repo.repoName).WithField("filename", filename).WithError(err).Error("can't save commit changes blob")
 			}
-
 		}
 	}
 }
