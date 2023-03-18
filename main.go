@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/dominikus1993/kup50-tfs/internal/diff"
 	"github.com/dominikus1993/kup50-tfs/internal/git"
 	"github.com/dominikus1993/kup50-tfs/internal/zip"
 	log "github.com/sirupsen/logrus"
@@ -40,13 +41,15 @@ func main() {
 			project := c.String("project")
 			author := c.String("author")
 			fmt.Println(pat)
-			client, err := git.NewAzureDevopsClient(c.Context, organization, pat, project)
+			differ := diff.NewBlobDiffer()
+			client, err := git.NewAzureDevopsClient(c.Context, organization, pat, project, differ)
 			if err != nil {
 				return err
 			}
 			changes := client.GetChanges(c.Context, author)
 			client.DowloadAndSaveChanges(c.Context, changes)
 			zip.ZipWriter("kup", "kup.zip")
+
 			return nil
 		},
 	}
