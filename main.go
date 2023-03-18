@@ -17,21 +17,22 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "organization",
-				Usage:    "organization url",
+				Usage:    "The URL of your Azure DevOps organization (e.g., https://dev.azure.com/myorg)",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "pat",
-				Usage:    "pat token",
+				Usage:    "Your Azure DevOps Personal Access Token",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "project",
-				Usage:    "project",
+				Usage:    "The name of the project within your organization",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "author",
+				Usage:    `(optional) - The name of the author whose changes you want to download. If not provided, defaults to "Dominik Kotecki" me xD`,
 				Required: false,
 				Value:    "Dominik Kotecki",
 			},
