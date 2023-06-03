@@ -6,8 +6,8 @@ require (
 	github.com/dominikus1993/html-diff v0.0.0-20160503140253-f61c192c7796
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/samber/lo v1.38.1
-	github.com/sirupsen/logrus v1.9.0
-	github.com/urfave/cli/v2 v2.25.1
+	github.com/sirupsen/logrus v1.9.2
+	github.com/urfave/cli/v2 v2.25.5
 )
 
 require (
@@ -20,8 +20,8 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/testify v1.8.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
-	golang.org/x/exp v0.0.0-20230321023759-10a507213a29 // indirect
-	golang.org/x/net v0.9.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
+	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
