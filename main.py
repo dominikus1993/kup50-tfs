@@ -4,9 +4,10 @@ from azure.devops.v7_1.git.models import GitQueryCommitsCriteria
 from azure.devops.v7_1.core.core_client import CoreClient
 from azure.devops.v7_1.core.models import TeamProjectReference
 import pprint
+import os
 # Fill in with your personal access token and org URL
-personal_access_token = 'YOURPAT'
-organization_url = 'https://dev.azure.com/YOURORG'
+personal_access_token = os.environ["PAT_TOKEN"]
+organization_url = os.environ["ORG"]
 
 # Create a connection to the org
 credentials = BasicAuthentication('', personal_access_token)
@@ -18,13 +19,8 @@ core_client: CoreClient = connection.clients.get_core_client()
 get_projects_response: list[TeamProjectReference] | None = core_client.get_projects()
 
 index = 0
-while get_projects_response is not None:
-    for project in get_projects_response.value :
+while get_projects_response is not None and len(get_projects_response) > 0:
+    for project in get_projects_response :
         pprint.pprint("[" + str(index) + "] " + project.name)
         index += 1
-    if get_projects_response.continuation_token is not None and get_projects_response.continuation_token != "":
-        # Get the next page of projects
-        get_projects_response = core_client.get_projects(continuation_token=get_projects_response.continuation_token)
-    else:
-        # All projects have been retrieved
-        get_projects_response = None
+    get_projects_response = core_client.get_projects(continuation_token=index)
