@@ -28,5 +28,3 @@ repos = list_repositories(git_client, projects=projects)
 for repo in repos:
     changes = list_changes(git_client, repo, "Dominik.Kotecki", from_date=get_first_day_of_month_when_none(None), to_date=get_last_day_of_month_when_none(None))
     chans = read_changes(git_client, repo, changes)
-    for c in chans:
-        pprint.pprint(c)
