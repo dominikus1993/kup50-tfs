@@ -2,6 +2,8 @@ import os
 from azure.devops.v7_1.git.models import GitRepository
 import os
 import zipfile
+import shutil
+
 PATH = "kup50"
 def create_dir_if_not_exists(repo: GitRepository) -> str:
     repo_name: str = repo.name if repo.name is not None else ""
@@ -22,4 +24,4 @@ def write_zip(path: str):
         zf.write(os.path.basename(PATH))
         
 def remove_old():
-    os.removedirs(PATH)
+    shutil.rmtree(PATH)
