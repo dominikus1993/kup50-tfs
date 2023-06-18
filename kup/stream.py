@@ -1,9 +1,9 @@
-from typing import Iterable
+from typing import Iterable, Sequence
 
 
-def stream_to_unicode(stream: Iterable[bytes]) -> Iterable[str] | None:
+def stream_to_unicode(stream: Iterable[bytes]) -> Sequence[str] | None:
     try:
         lines = ''.join(chunk.decode("utf-8") for chunk in stream).split('\n')
-        return (line + '\n' for line in lines)
+        return list((line + '\n' for line in lines))
     except Exception:
         return None

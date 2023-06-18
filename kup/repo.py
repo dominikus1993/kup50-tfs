@@ -8,6 +8,9 @@ from azure.devops.exceptions import AzureDevOpsServiceError
 from kup.stream import stream_to_unicode
 from kup.dir import create_dir_if_not_exists,path_to_html_file_name
 from kup.html import write
+from html_diff import diff
+from difflib import unified_diff, HtmlDiff
+
 def list_repositories(client: GitClient, projects: Iterable[TeamProjectReference]) -> Iterable[GitRepository]:
     for project in projects:
         repositories: list[GitRepository] | None  = client.get_repositories(project=project.id)
@@ -27,9 +30,9 @@ def list_changes(client: GitClient, repo: GitRepository, author: str, from_date:
       print(f'No access to repo: {repo.name}')
       
       
-def read_changes(client: GitClient, repo: GitRepository, changes: Iterable[GitCommitChanges]):
-    path = create_dir_if_not_exists(repo=repo)
+def read_changes(client: GitClient, repo: GitRepository, html_diff: HtmlDiff, changes: Iterable[GitCommitChanges]):
     for change in changes:
+        path = create_dir_if_not_exists(repo=repo)
         chans = change.changes
         if chans is not None:
             for chan in chans:
@@ -38,6 +41,15 @@ def read_changes(client: GitClient, repo: GitRepository, changes: Iterable[GitCo
                         file_path = chan["item"]["path"]
                         file = stream_to_unicode(client.get_blob_content(repo.id, chan['item']['objectId']))
                         if file is not None:
-                            write(file, path, path_to_html_file_name(file_path))
+                            diff = html_diff.make_file([], file)
+                            write(diff, path, path_to_html_file_name(file_path))
+                    if chan["changeType"] == "edit":
+                        file_path = chan["item"]["path"]
+                        new = stream_to_unicode(client.get_blob_content(repo.id, chan['item']['objectId']))
+                        old = stream_to_unicode(client.get_blob_content(repo.id, chan['item']['originalObjectId']))
+                        if new is not None and old is not None:
+                            res = html_diff.make_file(old, new, context=True)
+                            write(res, path, path_to_html_file_name(file_path))
+                    
                 
                 
