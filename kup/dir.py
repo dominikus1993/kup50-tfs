@@ -19,8 +19,7 @@ def path_to_html_file_name(path: str) -> str:
 def write_zip(path: str, zip_path: str):
     if os.path.exists(path=path):
         os.remove(path=path)
-    with zipfile.ZipFile(path, 'w') as zf:
-        zf.write(os.path.basename(zip_path))
+    shutil.make_archive(path, 'zip', zip_path)
         
 def remove_old(path: str):
     shutil.rmtree(path)

@@ -25,14 +25,15 @@ def cli():
 @cli.command("diff")
 @click.option('-p', '--pat', type=str, default=os.environ["PAT_TOKEN"], help='string')
 @click.option('-o', '--org', type=str, default=os.environ["ORG"])
+@click.option('-a', '--author', type=str, default="Dominik.Kotecki")
 @click.option('-o', "--output", type=str, default="kup.zip")
-def diff2html(pat: str, org: str, output: str):
+def diff2html(pat: str, org: str, author: str, output: str):
     click.echo("Diff creation start")
     click.echo("diff from log creation start")
     click.echo("pat: {}".format(pat))
     click.echo("org: {}".format(org))
+    click.echo("author: {}".format(author))
     click.echo("output: {}".format(output))
-# Create a connection to the org
     TMP = random_kup_folder_name()
     credentials = BasicAuthentication('', pat)
 
@@ -45,8 +46,8 @@ def diff2html(pat: str, org: str, output: str):
 
     repos = list_repositories(git_client, projects=projects)
     for repo in repos:
-        changes = list_changes(git_client, repo, "Dominik.Kotecki", from_date=get_first_day_of_month_when_none(None), to_date=get_last_day_of_month_when_none(None))
-        chans = process_and_write_changes(git_client, repo, diff, TMP, changes)
+        changes = list_changes(git_client, repo, author, from_date=get_first_day_of_month_when_none(None), to_date=get_last_day_of_month_when_none(None))
+        process_and_write_changes(git_client, repo, diff, TMP, changes)
 
     write_zip("kup.zip", TMP)
     remove_old(TMP)
