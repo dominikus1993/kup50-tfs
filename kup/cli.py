@@ -26,7 +26,7 @@ def cli():
 @click.option('-p', '--pat', type=str, default=os.environ["PAT_TOKEN"], help='string')
 @click.option('-o', '--org', type=str, default=os.environ["ORG"])
 @click.option('-a', '--author', type=str, default="Dominik.Kotecki")
-@click.option('-o', "--output", type=str, default="kup")
+@click.option('-o', "--output", type=str, default="kup.zip")
 def diff2html(pat: str, org: str, author: str, output: str):
     click.echo("Diff creation start")
     click.echo("diff from log creation start")
@@ -42,13 +42,15 @@ def diff2html(pat: str, org: str, author: str, output: str):
     git_client: GitClient = connection.clients.get_git_client()
     diff = HtmlDiff()
     # Get the first page of projects
-    projects = list_projects(core_client)
+    try:
+        projects = list_projects(core_client)
 
-    repos = list_repositories(git_client, projects=projects)
-    for repo in repos:
-        changes = list_changes(git_client, repo, author, from_date=get_first_day_of_month_when_none(None), to_date=get_last_day_of_month_when_none(None))
-        process_and_write_changes(git_client, repo, diff, TMP, changes)
-
-    write_zip(output, TMP)
-    remove_old(TMP)
+        repos = list_repositories(git_client, projects=projects)
+        for repo in repos:
+            changes = list_changes(git_client, repo, author, from_date=get_first_day_of_month_when_none(None), to_date=get_last_day_of_month_when_none(None))
+            process_and_write_changes(git_client, repo, diff, TMP, changes)
+        write_zip(output, TMP)
+    except:
+        click.echo("error")
+        remove_old(TMP)
     click.echo("Diff creation end")
