@@ -4,10 +4,9 @@ import os
 import zipfile
 import shutil
 
-PATH = "kup50"
-def create_dir_if_not_exists(repo: GitRepository) -> str:
+def create_dir_if_not_exists(repo: GitRepository, path: str) -> str:
     repo_name: str = repo.name if repo.name is not None else ""
-    path = os.path.join(PATH, repo_name)
+    path = os.path.join(path, repo_name)
     if not os.path.exists(path):
         os.makedirs(path)
     return path
@@ -17,11 +16,11 @@ def path_to_html_file_name(path: str) -> str:
     return f'{res}.html'
 
 
-def write_zip(path: str):
+def write_zip(path: str, zip_path: str):
     if os.path.exists(path=path):
         os.remove(path=path)
     with zipfile.ZipFile(path, 'w') as zf:
-        zf.write(os.path.basename(PATH))
+        zf.write(os.path.basename(zip_path))
         
-def remove_old():
-    shutil.rmtree(PATH)
+def remove_old(path: str):
+    shutil.rmtree(path)

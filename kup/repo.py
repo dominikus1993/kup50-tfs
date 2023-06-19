@@ -30,9 +30,9 @@ def list_changes(client: GitClient, repo: GitRepository, author: str, from_date:
       print(f'No access to repo: {repo.name}')
       
       
-def read_changes(client: GitClient, repo: GitRepository, html_diff: HtmlDiff, changes: Iterable[GitCommitChanges]):
+def process_and_write_changes(client: GitClient, repo: GitRepository, html_diff: HtmlDiff, tmp_path: str, changes: Iterable[GitCommitChanges]):
     for change in changes:
-        path = create_dir_if_not_exists(repo=repo)
+        path = create_dir_if_not_exists(repo, tmp_path)
         chans = change.changes
         if chans is not None:
             for chan in chans:
