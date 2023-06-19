@@ -1,4 +1,4 @@
-azure-core==1.27.0
+azure-core==1.27.1
 azure-devops==7.1.0b3
 beautifulsoup4==4.12.2
 certifi==2023.5.7
