@@ -1,7 +1,6 @@
 import os
 from azure.devops.v7_1.git.models import GitRepository
 import os
-import zipfile
 import shutil
 
 def create_dir_if_not_exists(repo: GitRepository, path: str) -> str:

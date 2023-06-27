@@ -3,13 +3,11 @@ from azure.devops.v7_1.core.models import TeamProjectReference
 from azure.devops.v7_1.git.git_client import GitClient
 from azure.devops.v7_1.git.models import GitRepository, GitCommit, GitCommitChanges
 from azure.devops.v7_1.git.models import GitQueryCommitsCriteria, GitObject
-from collections.abc import Sequence
 from azure.devops.exceptions import AzureDevOpsServiceError
 from kup.stream import stream_to_unicode
 from kup.dir import create_dir_if_not_exists,path_to_html_file_name
 from kup.html import write
-from html_diff import diff
-from difflib import unified_diff, HtmlDiff
+from difflib import HtmlDiff
 
 def list_repositories(client: GitClient, projects: Iterable[TeamProjectReference]) -> Iterable[GitRepository]:
     for project in projects:
