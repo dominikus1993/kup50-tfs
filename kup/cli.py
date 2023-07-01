@@ -23,8 +23,8 @@ def cli():
 
 
 @cli.command("diff")
-@click.option('-p', '--pat', type=str, default=os.environ["PAT_TOKEN"], help='string')
-@click.option('-o', '--org', type=str, default=os.environ["ORG"])
+@click.option('-p', '--pat', type=str, default=lambda: os.environ.get("PAT_TOKEN", ""), help='string')
+@click.option('-o', '--org', type=str, default=lambda: os.environ.get("ORG", ""))
 @click.option('-a', '--author', type=str, default="Dominik.Kotecki")
 @click.option('-o', "--output", type=str, default="kup.zip")
 def diff2html(pat: str, org: str, author: str, output: str):
